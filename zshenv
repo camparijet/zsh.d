@@ -1,15 +1,40 @@
 # -*- mode: sh; indent-tabs-mode: nil -*-
+#
+# Copyright (C) 2011-2017  Kouhei Sutou <kou@clear-code.com>
+#
+# This library is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 # パスの設定
 ## 重複したパスを登録しない。
 typeset -U path
+## 1度パスを設定した後は既存のパスを優先
+### 2017-02-19
+if [ "${path_is_set:-no}" = "yes" ]; then
+    base_path=($path)
+else
+    base_path=()
+fi
+export path_is_set=yes
 ## (N-/): 存在しないディレクトリは登録しない。
 ##    パス(...): ...という条件にマッチするパスのみ残す。
 ##            N: NULL_GLOBオプションを設定。
 ##               globがマッチしなかったり存在しないパスを無視する。
 ##            -: シンボリックリンク先のパスを評価。
 ##            /: ディレクトリのみ残す。
-path=(# システム用
+path=(# 既存のパスを優先
+      $base_path
+      # システム用
       /bin(N-/)
       # 自分用（--prefix=$HOME/localでインストールしたもの）
       $HOME/local/bin(N-/)
@@ -19,6 +44,15 @@ path=(# システム用
       # rbenv用
       ## 2012-02-21
       $HOME/.rbenv/bin(N-/)
+      # Miniconda用
+      ## 2017-01-22
+      $HOME/miniconda3/bin(N-/)
+      # Yarn用
+      ## 2017-05-16
+      $HOME/.yarn/bin(N-/)
+      # Composer用
+      ## 2017-06-26
+      $HOME/.config/composer/vendor/bin(N-/)
       # Debian GNU/Linux用
       /var/lib/gems/*/bin(N-/)
       # MacPorts用
@@ -113,7 +147,10 @@ typeset -U pkg_config_path
 ###               globがマッチしなかったり存在しないパスを無視する。
 ###            -: シンボリックリンク先のパスを評価。
 ###            /: ディレクトリのみ残す。
-pkg_config_path=(# 自分用
+pkg_config_path=(# 既存のパスを優先
+                 ## 2017-02-10
+                 $pkg_config_path
+                 # 自分用
                  $HOME/local/lib/pkgconfig(N-/)
                  # MacPorts用
                  /opt/local/lib/pkgconfig(N-/))

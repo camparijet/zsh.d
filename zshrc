@@ -1,4 +1,20 @@
 # -*- mode: sh; indent-tabs-mode: nil -*-
+#
+# Copyright (C) 2011-2013  Kouhei Sutou <kou@clear-code.com>
+# Copyright (C) 2014  Kosuke Asami
+#
+# This library is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 # キーバインド
 ## Emacsキーバインドを使う。
@@ -124,14 +140,22 @@ count_prompt_characters()
 {
     # print:
     #   -P: プロンプトフォーマットを展開する。
-    #   -n: 改行をつけない。
     # sed:
     #   -e $'s/\e\[[0-9;]*m//g': ANSIエスケープシーケンスを削除。
     # wc:
-    #   -c: 文字数を出力する。
+    #   -m: 文字数を出力する。
     # sed:
     #   -e 's/ //g': *BSDやMac OS Xのwcは数字の前に空白を出力するので削除する。
-    print -n -P -- "$1" | sed -e $'s/\e\[[0-9;]*m//g' | wc -m | sed -e 's/ //g'
+    #
+    # 「print -n」で改行を含めないこともできるがBSD sedは改行を入れて
+    # しまうので、まずは改行込みで計算して、最後に-1する。
+    ## 2015-08-30
+    local n_characters_including_newline=$( \
+        print -P -- "$1" | \
+            sed -e $'s/\e\[[0-9;]*m//g' | \
+            wc -m | \
+            sed -e 's/ //g')
+    echo $[n_characters_including_newline - 1]
 }
 
 ## プロンプトを更新する。
@@ -186,14 +210,6 @@ update_prompt()
     #       「...」を太字で緑背景の白文字にする。
     #   %~: カレントディレクトリのフルパス（可能なら「~」で省略する）
     RPROMPT="[%{%B%F{white}%K{magenta}%}%~%{%k%f%b%}]"
-    case "$TERM_PROGRAM" in
-        Apple_Terminal)
-            # Mac OS Xのターミナルでは$COLUMNSに右余白が含まれていないので
-            # 右プロンプトに「-」を追加して調整。
-            ## 2011-09-05
-            RPROMPT="${RPROMPT}-"
-            ;;
-    esac
 
     # バージョン管理システムの情報を取得する。
     LANG=C vcs_info >&/dev/null
@@ -299,13 +315,52 @@ WORDCHARS=${WORDCHARS:s,/,,}
 ## 2011-09-19
 WORDCHARS="${WORDCHARS}|"
 
-
 # alias
+
+# grepの設定
+## GNU grepがあったら優先して使う。
+if type ggrep > /dev/null 2>&1; then
+    grep_command=ggrep
+else
+    grep_command=grep
+fi
+## grepのバージョンを検出。
+grep_version="$(grep --version | head -n 1 | sed -e 's/^[^0-9.]*\([0-9.]*\)[^0-9.]*$/\1/')"
+## デフォルトのオプションの設定
+grep_options=""
+### ディレクトリー内も再帰的に処理する。
+grep_options="-r $grep_options"
+### バイナリファイルにはマッチさせない。
+grep_options="--binary-files=without-match $grep_options"
+### 拡張子が.tmpのファイルは無視する。
+grep_options="--exclude=\*.tmp $grep_options"
+### 管理用ディレクトリを無視する。
+if grep --help 2>&1 | grep -q -- --exclude-dir; then
+    grep_options="--exclude-dir=.svn $grep_options"
+    grep_options="--exclude-dir=.git $grep_options"
+    grep_options="--exclude-dir=.deps $grep_options"
+    grep_options="--exclude-dir=.libs $grep_options"
+fi
+### 可能なら色を付ける。
+if grep --help 2>&1 | grep -q -- --color; then
+    grep_options="--color=auto $grep_options"
+fi
+
+## デフォルトのオプションを使う。
+alias grep="${grep_command} ${grep_options}"
+
+# sedの設定
+## GNU sedがあったら優先して使う。
+## 2012-03-04
+if type gsed > /dev/null 2>&1; then
+    alias sed=gsed
+fi
+
 ## ページャーを使いやすくする。
 ### grep -r def *.rb L -> grep -r def *.rb |& lv
 alias -g L="|& $PAGER"
 ## grepを使いやすくする。
-alias -g G='| grep'
+alias -g G='| grep --directories skip'
 ## 後はおまけ。
 alias -g H='| head'
 alias -g T='| tail'
@@ -371,7 +426,7 @@ alias x="exit"
 ###            -: シンボリックリンク先のパスを評価。
 ###            .: 通常のファイルのみ残す。
 ### 2011-11-06
-alais_files=(~/.zsh.d/zshalias(N-.)
+alias_files=(~/.zsh.d/zshalias(N-.)
              ~/.zshalias(N-.))
 for alias_file in ${alias_files}; do
     source "${alias_file}"
