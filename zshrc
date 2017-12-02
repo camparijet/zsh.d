@@ -324,30 +324,37 @@ if type ggrep > /dev/null 2>&1; then
 else
     grep_command=grep
 fi
-## grepのバージョンを検出。
-grep_version="$(grep --version | head -n 1 | sed -e 's/^[^0-9.]*\([0-9.]*\)[^0-9.]*$/\1/')"
-## デフォルトのオプションの設定
-grep_options=""
-### ディレクトリー内も再帰的に処理する。
-## grep_options="-r $grep_options"
-### バイナリファイルにはマッチさせない。
-grep_options="--binary-files=without-match $grep_options"
-### 拡張子が.tmpのファイルは無視する。
-grep_options="--exclude=\*.tmp $grep_options"
-### 管理用ディレクトリを無視する。
-if grep --help 2>&1 | grep -q -- --exclude-dir; then
-    grep_options="--exclude-dir=.svn $grep_options"
-    grep_options="--exclude-dir=.git $grep_options"
-    grep_options="--exclude-dir=.deps $grep_options"
-    grep_options="--exclude-dir=.libs $grep_options"
+## check grep if it's busy-box version or not
+if grep -V > /dev/null; then
+    grep_from_busxybox=0
+else
+    grep_from_busxybox=1
 fi
-### 可能なら色を付ける。
-if grep --help 2>&1 | grep -q -- --color; then
-    grep_options="--color=auto $grep_options"
+if $grep_from_busybox; then
+    ## grepのバージョンを検出。
+    grep_version="$(grep --version | head -n 1 | sed -e 's/^[^0-9.]*\([0-9.]*\)[^0-9.]*$/\1/')"
+    ## デフォルトのオプションの設定
+    grep_options=""
+    ### ディレクトリー内も再帰的に処理する。
+    ## grep_options="-r $grep_options"
+    ### バイナリファイルにはマッチさせない。
+    grep_options="--binary-files=without-match $grep_options"
+    ### 拡張子が.tmpのファイルは無視する。
+    grep_options="--exclude=\*.tmp $grep_options"
+    ### 管理用ディレクトリを無視する。
+    if grep --help 2>&1 | grep -q -- --exclude-dir; then
+        grep_options="--exclude-dir=.svn $grep_options"
+        grep_options="--exclude-dir=.git $grep_options"
+        grep_options="--exclude-dir=.deps $grep_options"
+        grep_options="--exclude-dir=.libs $grep_options"
+    fi
+    ### 可能なら色を付ける。
+    if grep --help 2>&1 | grep -q -- --color; then
+        grep_options="--color=auto $grep_options"
+    fi
+    ## デフォルトのオプションを使う。
+    alias grep="${grep_command} ${grep_options}"
 fi
-
-## デフォルトのオプションを使う。
-alias grep="${grep_command} ${grep_options}"
 
 # sedの設定
 ## GNU sedがあったら優先して使う。
