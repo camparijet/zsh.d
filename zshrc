@@ -406,6 +406,14 @@ case $(uname) in
         fi
         alias ps="ps -fl -u$(/usr/xpg4/bin/id -un)"
         ;;
+    Linux)
+        if ls --help | grep -i busybox > /dev/null; then
+            echo '' > /dev/null
+        else
+            alias la="ls -lhAF --color=auto"
+            alias ps="ps -fU$(whoami) --forest"
+        fi
+        ;;
     *)
         alias la="ls -lhAF --color=auto"
         alias ps="ps -fU$(whoami) --forest"
